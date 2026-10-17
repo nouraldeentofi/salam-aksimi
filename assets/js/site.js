@@ -449,17 +449,41 @@
     window.addEventListener("scroll", function () { if (bandT) queueBand(); }, { passive: true });
   }
 
-  /* ---------------------------------------------------------------- hero orbit: moves on its own; pulses pause when hidden */
-  var orbit = $("[data-orbit]");
-  if (orbit) {
-    var oSvg = $("svg", orbit), oVis = true;
-    if (oSvg && oSvg.pauseAnimations) {
-      var syncPulses = function () { if (reduced() || d.hidden || !oVis || mqPhone.matches) oSvg.pauseAnimations(); else oSvg.unpauseAnimations(); };
-      if ("IntersectionObserver" in window) new IntersectionObserver(function (es) { oVis = es[0].isIntersecting; syncPulses(); }).observe(orbit);
-      d.addEventListener("visibilitychange", syncPulses);
-      if (mqReduce.addEventListener) mqReduce.addEventListener("change", syncPulses);
-      syncPulses();
+  /* ---------------------------------------------------------------- hero: «the post that lands»
+     The page is the finished hero; <head> adds html.intro (once per session, not with reduced motion) and the CSS
+     plays the opening over it. Here: remember that it played, aim the spark at the main button, pause with the tab,
+     and replay on demand. */
+  var pv = $("[data-pv]");
+  function syncDocHidden() { root.classList.toggle("doc-hidden", d.hidden); }
+  d.addEventListener("visibilitychange", syncDocHidden); syncDocHidden();
+  if (pv) {
+    var aimT = 0;
+    var aim = function () {
+      /* the spark leaves the top of the post and lands on «احجز استشارة» (measured, so it works in any layout) */
+      var fly = $(".pv-fly", pv), cta = $(".hero-ctas .btn-primary");
+      if (!fly || !cta) return;
+      var f = fly.getBoundingClientRect(), c = cta.getBoundingClientRect();
+      if (!f.width || !c.width) return;
+      pv.style.setProperty("--fx", Math.round(c.left + c.width / 2 - (f.left + f.width / 2)) + "px");
+      pv.style.setProperty("--fy", Math.round(c.top + c.height / 2 - (f.top + f.height / 2)) + "px");
+    };
+    var play = function () {
+      clearTimeout(aimT);
+      /* measure once the words have entered (their entrance moves them a few px) and before the spark leaves */
+      aimT = setTimeout(aim, 2600);
+    };
+    if (root.classList.contains("intro")) {
+      try { sessionStorage.setItem("sa-intro", "1"); } catch (e) {}
+      play();
     }
+    var replayBtn = $("[data-pv-replay]");
+    if (replayBtn) replayBtn.addEventListener("click", function () {
+      if (reduced()) return;
+      root.classList.remove("intro");
+      void pv.offsetWidth;                                  /* restart every CSS animation of the opening */
+      root.classList.add("intro");
+      play();
+    });
   }
 
   /* ---------------------------------------------------------------- the living background: threads that float, sparks that run along them */
